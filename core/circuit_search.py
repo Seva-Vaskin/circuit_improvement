@@ -1,6 +1,8 @@
-from circuit import Circuit
+import pathlib
+
+from .circuit import Circuit
 from itertools import combinations, product
-from functions2 import BooleanFunction
+from .functions2 import BooleanFunction
 import os
 import pycosat
 import sys
@@ -214,9 +216,11 @@ class CircuitFinder:
             # TODO: complete
             assert False
         elif solver == 'pysat':
-            cnf_file_name = '../tmp.cnf'
+            cnf_file_name = 'tmp.cnf'
             self.save_cnf_formula_to_file(cnf_file_name)
-            f1 = CNF(from_file='../tmp.cnf')
+            if not pathlib.Path(cnf_file_name).exists():
+                raise "Fuck up"
+            f1 = CNF(from_file=cnf_file_name)
             s = Solver()
             s.append_formula(f1.clauses)
             s.solve()
@@ -328,8 +332,11 @@ if __name__ == '__main__':
     end = timer()
 
     if not circuit:
-        print('There is no such circuit, sorry')
+        print(f'There is no such circuit. Function: {sys.argv[3:]} '
+              f'Time: {end-start:.2f} seconds',
+              file=sys.stderr)
     else:
-        print('Circuit found!\n')
+        print(f'Circuit found! Function: {sys.argv[3:]} '
+              f'Time: {end-start:.2f} seconds', file=sys.stderr)
         print(circuit)
-    print(f'Time: {end-start:.2f} seconds')
+    print()

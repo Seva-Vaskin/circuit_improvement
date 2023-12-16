@@ -2,7 +2,7 @@ from itertools import product
 import networkx as nx
 import os
 
-project_directory = os.path.dirname(os.path.abspath("path"))
+project_directory = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath("path")), '..'))
 
 
 class Circuit:
