@@ -92,20 +92,17 @@ format_time() {
 
 update_running_pids() {
     for i in "${!running_pids[@]}"; do
+        pid=${running_pids[$i]}
         # Delete finished
-        if ! kill -0 "${running_pids[$i]}" 2>/dev/null; then
-            # Process is no longer running, remove it from the array
-            unset 'running_pids[i]'
-        else
-            # Check if the CPU time exceeds the limit
-            cpu_time=$(ps -o cputime= -p "${running_pids[$i]}" | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')
-#            echo "CPU_TIME: $cpu_time TIME_LIMIT: $time_limit"
-            if [[ $cpu_time -gt $time_limit ]]; then
-                kill "${running_pids[$i]}"
-                unset 'running_pids[i]'
-                echo "Process killed as it exceeded the CPU time limit"
+        if ! kill -0 "$pid" 2>/dev/null; then
+            # Check the exit status
+            wait "${pid}"
+            if [ -$? -ne 0 ]; then
                 ((killed_counter++))
             fi
+
+            # Process is no longer running, remove it
+            unset 'running_pids[i]'
         fi
     done
 }
@@ -113,17 +110,23 @@ update_running_pids() {
 MAX_RUNNING_PROCESSES=16
 UPDATE_TIMEOUT=1
 
+
 create_directory "$pred_directory"
 create_directory "$result_directory"
 
+echo "Loading functions..."
 mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs")
-declare -a running_pids
+echo "Loaded ${#truth_tables[@]} functions"
 
+ulimit -t "${time_limit}"
+
+declare -a running_pids
 killed_counter=0
 start_time=$(date +%s)
 interval=100
 total_iterations=${#truth_tables[@]}
 counter=0
+echo "Start search"
 for tables in "${truth_tables[@]}"; do
     eval "python ./find_min_circuit.py ${number_of_inputs} ${basis} ${pred_directory} ${result_directory} ${tables[*]}" &
     pid=$!
@@ -147,7 +150,6 @@ for tables in "${truth_tables[@]}"; do
         average_time_per_iteration=$(echo "$elapsed_time / $counter" | bc -l)
         estimated_total_time=$(echo "$average_time_per_iteration * $total_iterations" | bc -l)
 
-        # Log the estimation
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Iteration $counter/$total_iterations. Elapsed: $(format_time $elapsed_time), estimated total: $(format_time "$estimated_total_time")"
     fi
 done
@@ -158,4 +160,4 @@ while [[ ${#running_pids[@]} -gt 0 ]] ; do
     update_running_pids
 done
 echo "All done"
-echo "Didn't manage to find circuits for ${killed_counter} functions"
+echo "Didn't manage to find circuits for ${killed_counter}/${total_iterations} functions"
