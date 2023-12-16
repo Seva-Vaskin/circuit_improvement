@@ -104,6 +104,7 @@ update_running_pids() {
                 kill "${running_pids[$i]}"
                 unset 'running_pids[i]'
                 echo "Process killed as it exceeded the CPU time limit"
+                ((killed_counter++))
             fi
         fi
     done
@@ -118,6 +119,7 @@ create_directory "$result_directory"
 mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs")
 declare -a running_pids
 
+killed_counter=0
 start_time=$(date +%s)
 interval=100
 total_iterations=${#truth_tables[@]}
@@ -150,5 +152,10 @@ for tables in "${truth_tables[@]}"; do
     fi
 done
 
-echo "Waiting for subprocesses before finish"
-wait
+echo "Started all tasks! Wait till finish!"
+while [[ ${#running_pids[@]} -gt 0 ]] ; do
+    sleep $UPDATE_TIMEOUT
+    update_running_pids
+done
+echo "All done"
+echo "Didn't manage to find circuits for ${killed_counter} functions"
