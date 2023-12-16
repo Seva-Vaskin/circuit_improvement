@@ -70,9 +70,7 @@ if __name__ == "__main__":
 
 
     def get_pred_file():
-        # 2^k prediction files maximum
-        k = 6
-        return predictions_dir / f"pred_{truth_tables[-1][:k]}.pred"
+        return predictions_dir / f"pred_{truth_tables[-1]}.pred"
 
 
     pred_file = get_pred_file()
