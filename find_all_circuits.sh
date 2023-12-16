@@ -132,12 +132,10 @@ for tables in "${truth_tables[@]}"; do
     fi
 
     if [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]]; then
-        echo "$MAX_RUNNING_PROCESSES processes are already running, wait a little bit"
         while [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]] ; do
             sleep $UPDATE_TIMEOUT
             update_running_pids
         done
-        echo "Continue running"
     fi
 
     ((counter++))
