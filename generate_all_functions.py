@@ -2,30 +2,30 @@ import itertools
 import sys
 
 
+def eval_functions(truth_tables, args):
+    idx = int(args, 2)
+    return tuple(t[idx] for t in truth_tables)
+
+
+def get_permuted_functions(number_of_inputs, truth_tables, permutation):
+    result_tables = tuple(list() for _ in range(len(truth_tables)))
+    for i in range(1 << number_of_inputs):
+        args = format(i, f'0{number_of_inputs}b')
+        permuted_args = ''.join(args[permutation[j]] for j in range(number_of_inputs))
+        for table, val in zip(result_tables, eval_functions(truth_tables, permuted_args)):
+            table.append(val)
+    return tuple(''.join(table) for table in result_tables)
+
+
 def get_equivalence_class(number_of_inputs, truth_tables):
-    def eval_function(truth_table, args):
-        idx = int(args, 2)
-        return truth_table[idx]
+    class_representative = truth_tables
 
-    def get_class(truth_table):
-        class_representative = truth_table
+    for permutation in itertools.permutations(range(number_of_inputs)):
+        assert isinstance(permutation, tuple)
+        candidate = get_permuted_functions(number_of_inputs, truth_tables, permutation)
+        class_representative = min(class_representative, candidate)
 
-        for perm in itertools.permutations(range(number_of_inputs)):
-            assert isinstance(perm, tuple)
-
-            candidate_table = ['?'] * (1 << number_of_inputs)
-            for i in range(1 << number_of_inputs):
-                args = format(i, f'0{number_of_inputs}b')
-                permuted_args = ''.join(args[perm[j]] for j in range(number_of_inputs))
-                candidate_table[i] = eval_function(truth_table, permuted_args)
-
-            candidate_table = ''.join(candidate_table)
-            if candidate_table[0] == '0' and candidate_table < class_representative:
-                class_representative = candidate_table
-
-        return class_representative
-
-    return tuple(get_class(table) for table in truth_tables)
+    return class_representative
 
 
 def all_truth_tables(inputs, outputs):
