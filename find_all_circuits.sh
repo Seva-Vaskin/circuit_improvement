@@ -48,22 +48,18 @@ create_directory() {
     # Check if the directory already exists
     if [ -d "$dir_name" ]; then
         # Ask the user for permission to override
-        read -p "Directory '$dir_name' exists. Override? (y/n): " answer
+        read -p "Directory '$dir_name' exists. Is it ok? Should we continue? (y/n): " answer
 
         case $answer in
             [Yy]* )
-                # Remove the existing directory and create a new one
-                rm -rf "$dir_name"
-                mkdir "$dir_name"
-                echo "Directory '$dir_name' created after overriding."
+                echo "Continue working with the existing directory '$dir_name'."
                 ;;
             [Nn]* )
-                # Do not override the directory
-                echo "Directory '$dir_name' was not overridden."
+                echo "Exit."
+                exit 1
                 ;;
             * )
-                # Invalid input
-                echo "Invalid input. Directory was not created."
+                echo "Invalid input :("
                 exit 1
                 ;;
         esac

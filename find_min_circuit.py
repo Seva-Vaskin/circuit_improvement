@@ -68,12 +68,12 @@ if __name__ == "__main__":
         print(f"Predictions directory ({predictions_dir}) is does not exist or not a directory")
         sys.exit(-1)
 
+    circuit_file = output_dir / f"{'_'.join(truth_tables)}.txt"
 
-    def get_pred_file():
-        return predictions_dir / f"pred_{truth_tables[-1]}.pred"
+    if circuit_file.exists():
+        sys.exit(0)
 
-
-    pred_file = get_pred_file()
+    pred_file = predictions_dir / f"pred_{truth_tables[-1]}.pred"
     if pred_file.exists():
         with pred_file.open('r') as f:
             try:
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     _, gates_number, circuit = find_min_circuit(truth_tables, number_of_inputs, gates_prediction, forbidden_operations)
 
-    with (output_dir / f"{'_'.join(truth_tables)}.txt").open('w') as f:
+    with circuit_file.open('w') as f:
         print(circuit, file=f)
 
     with pred_file.open('w') as f:
