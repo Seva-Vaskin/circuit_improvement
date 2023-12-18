@@ -7,42 +7,96 @@ def eval_functions(truth_tables, args):
     return tuple(t[idx] for t in truth_tables)
 
 
-def get_permuted_functions(number_of_inputs, truth_tables, permutation):
+def get_transformed_function(number_of_inputs, truth_tables, permutation, input_negotiations, output_negotiations):
+    assert number_of_inputs == len(input_negotiations)
+    assert len(truth_tables) == len(output_negotiations)
+
     result_tables = tuple(list() for _ in range(len(truth_tables)))
+
+    # Iterate over all possible arguments
     for i in range(1 << number_of_inputs):
         args = format(i, f'0{number_of_inputs}b')
+
+        # Apply inputs permutation
         permuted_args = ''.join(args[permutation[j]] for j in range(number_of_inputs))
-        for table, val in zip(result_tables, eval_functions(truth_tables, permuted_args)):
+
+        # Apply inputs negotiations
+        negotiated_args = ''.join('0' if (permuted_args[j] == '0') ^ input_negotiations[j] else '1'
+                                  for j in range(number_of_inputs))
+
+        # Iterate over functions values
+        for j, (table, val) in enumerate(zip(result_tables, eval_functions(truth_tables, negotiated_args))):
+            # Apply output negotiation
+            if output_negotiations[j]:
+                val = '1' if val == '0' else '0'
+
+            # Save value
             table.append(val)
+
     return tuple(''.join(table) for table in result_tables)
 
 
-def get_equivalence_class(number_of_inputs, truth_tables):
+def get_equivalence_class(number_of_inputs, truth_tables, basis):
     class_representative = truth_tables
 
+    def normalize_outputs(tables):
+        new_tables = []
+        for table in tables:
+            if table[0] == '0':
+                new_tables.append(table)
+            else:
+                new_tables.append(''.join('1' if x == '0' else '0' for x in table))
+        return tuple(new_tables)
+
+    # Iterate over input permutations
     for permutation in itertools.permutations(range(number_of_inputs)):
         assert isinstance(permutation, tuple)
-        candidate = get_permuted_functions(number_of_inputs, truth_tables, permutation)
-        class_representative = min(class_representative, candidate)
+
+        if basis == 'bench':
+            # Find candidate for bench without input negotiations
+            candidate = get_transformed_function(number_of_inputs, truth_tables, permutation,
+                                                 [False] * number_of_inputs, [False] * len(truth_tables))
+
+            class_representative = min(class_representative, normalize_outputs(candidate))
+        else:
+            assert basis == 'aig'
+            # Iterate over all input negotiations (for AIG)
+            for input_negotiations in itertools.product([False, True], repeat=number_of_inputs):
+                candidate = get_transformed_function(number_of_inputs, truth_tables, permutation,
+                                                     input_negotiations, [False] * len(truth_tables))
+                class_representative = min(class_representative, normalize_outputs(candidate))
 
     return class_representative
 
 
-def all_truth_tables(inputs, outputs):
+def all_truth_tables(inputs, outputs, basis):
     for tables in itertools.combinations(itertools.product('01', repeat=2 ** inputs - 1), outputs):
         tables = tuple(map(lambda x: '0' + ''.join(x), tables))
-        if get_equivalence_class(inputs, tables) == tables:
+        class_representative = get_equivalence_class(inputs, tables, basis)
+        if class_representative == tables:
             yield tables
 
 
-if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print('Usage:', sys.argv[0], 'n m')
-        print('(n is the number of inputs, m is the number of outputs)')
-        sys.exit(-1)
-
+def main():
     number_of_inputs = int(sys.argv[1])
     number_of_outputs = int(sys.argv[2])
+    basis = sys.argv[3].lower()
 
-    for truth_tables in all_truth_tables(number_of_inputs, number_of_outputs):
+    assert basis == 'aig' or basis == 'bench'
+
+    # for truth_tables in itertools.combinations(itertools.product('01', repeat=2 ** number_of_inputs),
+    #                                            number_of_outputs):
+    #     truth_tables = tuple(map(lambda x: ''.join(x), truth_tables))
+    #     print(f"{truth_tables}: {get_equivalence_class(number_of_inputs, truth_tables, basis)}")
+
+    for truth_tables in all_truth_tables(number_of_inputs, number_of_outputs, basis):
         print(*truth_tables)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 4:
+        print('Usage:', sys.argv[0], 'n m basis')
+        print('(n is the number of inputs, m is the number of outputs, basis: BENCH/AIG)')
+        sys.exit(-1)
+
+    main()
