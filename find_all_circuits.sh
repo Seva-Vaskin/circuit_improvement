@@ -111,7 +111,7 @@ create_directory "$pred_directory"
 create_directory "$result_directory"
 
 echo "Loading functions..."
-mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs")
+mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs" "$basis")
 echo "Loaded ${#truth_tables[@]} functions"
 
 ulimit -t "${time_limit}"
