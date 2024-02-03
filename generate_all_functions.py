@@ -1,5 +1,6 @@
 import itertools
 import sys
+from collections import defaultdict
 
 
 def eval_functions(truth_tables, args):
@@ -33,10 +34,10 @@ def get_transformed_function(number_of_inputs, truth_tables, permutation, input_
             # Save value
             table.append(val)
 
-    return tuple(''.join(table) for table in result_tables)
+    return tuple(sorted(''.join(table) for table in result_tables))
 
 
-def get_equivalence_class(number_of_inputs, truth_tables, basis):
+def normalize_function(number_of_inputs, truth_tables, basis):
     class_representative = truth_tables
 
     def normalize_outputs(tables):
@@ -69,12 +70,27 @@ def get_equivalence_class(number_of_inputs, truth_tables, basis):
     return class_representative
 
 
-def all_truth_tables(inputs, outputs, basis):
+def get_all_functions(inputs, outputs):
     for tables in itertools.combinations(itertools.product('01', repeat=2 ** inputs - 1), outputs):
         tables = tuple(map(lambda x: '0' + ''.join(x), tables))
-        class_representative = get_equivalence_class(inputs, tables, basis)
-        if class_representative == tables:
+        yield tables
+
+
+def normalized_truth_tables(inputs, outputs, basis):
+    for tables in get_all_functions(inputs, outputs):
+        normalized = normalize_function(inputs, tables, basis)
+        if normalized == tables:
             yield tables
+
+
+def get_grouped_functions(inputs, outputs, basis):
+    grouped_functions = defaultdict(list)
+
+    for truth_table in get_all_functions(inputs, outputs):
+        normalized = normalize_function(inputs, truth_table, basis)
+        grouped_functions[normalized].append(truth_table)
+
+    return grouped_functions
 
 
 def main():
@@ -84,12 +100,7 @@ def main():
 
     assert basis == 'aig' or basis == 'bench'
 
-    # for truth_tables in itertools.combinations(itertools.product('01', repeat=2 ** number_of_inputs),
-    #                                            number_of_outputs):
-    #     truth_tables = tuple(map(lambda x: ''.join(x), truth_tables))
-    #     print(f"{truth_tables}: {get_equivalence_class(number_of_inputs, truth_tables, basis)}")
-
-    for truth_tables in all_truth_tables(number_of_inputs, number_of_outputs, basis):
+    for truth_tables in normalized_truth_tables(number_of_inputs, number_of_outputs, basis):
         print(*truth_tables)
 
 
