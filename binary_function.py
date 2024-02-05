@@ -34,6 +34,9 @@ class BinaryFunction:
         assert isinstance(other, BinaryFunction)
         return self.truth_tables < other.truth_tables
 
+    def has_equal_outputs(self):
+        return len(set(self.truth_tables)) != len(self.truth_tables)
+
     def transform(self, input_permutation=None, input_negotiations=None, output_negotiations=None):
 
         assert input_permutation is None or self.inputs == len(input_permutation)
@@ -85,18 +88,22 @@ class BinaryFunction:
         function_class = set()
 
         # Iterate over input permutations
-        for permutation in itertools.permutations(range(self.inputs)):
-            assert isinstance(permutation, tuple)
+        for input_permutation, output_negotiations in itertools.product(
+                itertools.permutations(range(self.inputs)), itertools.product([False, True], repeat=self.outputs)):
+            assert isinstance(input_permutation, tuple)
 
             if basis == 'bench':
                 # Find candidate for bench without input negotiations
-                candidate = self.transform(permutation).normalized()
+                candidate = self.transform(input_permutation=input_permutation,
+                                           output_negotiations=output_negotiations)
                 function_class.add(candidate)
             else:
                 assert basis == 'aig'
                 # Iterate over all input negotiations (for AIG)
                 for input_negotiations in itertools.product([False, True], repeat=self.inputs):
-                    candidate = self.transform(permutation, input_negotiations).normalized()
+                    candidate = self.transform(input_permutation=input_permutation,
+                                               input_negotiations=input_negotiations,
+                                               output_negotiations=output_negotiations)
                     function_class.add(candidate)
 
         return function_class
@@ -121,7 +128,11 @@ class BinaryFunction:
             function_group = function.get_equivalence_class(basis)
             representative = BinaryFunction.get_representative(function_group)
             groups[representative] = function_group
+            for f in function_group:
+                assert len(set(f.truth_tables)) != f.truth_tables or f in functions_to_be_enumerated
+            # assert all(f in functions_to_be_enumerated for f in function_group)
             functions_to_be_enumerated.difference_update(function_group)
+        assert not functions_to_be_enumerated
         return groups
 
     @staticmethod
