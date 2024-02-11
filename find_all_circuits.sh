@@ -1,40 +1,62 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 number_of_inputs number_of_outputs time_limit basis result_directory pred_directory"
+    echo "Usage: $0 number_of_inputs number_of_outputs time_limit basis result_directory pred_directory [--circuit_size SIZE]"
     echo "  number_of_inputs: An integer representing the number of inputs"
     echo "  number_of_outputs: An integer representing the number of outputs"
     echo "  time_limit: An integer representing maximum searching time for one circuit"
     echo "  basis: BENCH/AIG"
     echo "  result_directory: The directory to store the results"
     echo "  pred_directory: The directory to store number of gates predictions"
+    echo "  --circuit_size: Optional argument to specify the circuit size"
     exit 1
 }
 
-# Check if exactly two arguments are provided
-if [ "$#" -ne 6 ]; then
-    echo "Error: Incorrect number of arguments. Got ($#)"
-    usage
-fi
+validate_integer() {
+    local re='^[0-9]+$'
+    for var in "$@"; do
+        if ! [[ $var =~ $re ]]; then
+            echo "Error: Expected an integer. Got: $var"
+            usage
+            return 1 # Return error
+        fi
+    done
+}
 
-number_of_inputs=$1
-number_of_outputs=$2
-time_limit=$3
-basis=$4
-result_directory=$5
-pred_directory=$6
+parse_arguments() {
+    # Initialize optional arguments with default values if necessary
+    circuit_size="0"
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --circuit_size)
+                circuit_size="$2"
+                shift # past argument
+                shift # past value
+                ;;
+            *) # preserve positional arguments
+                positional_args+=("$1")
+                shift # past argument
+                ;;
+        esac
+    done
 
+    # Restore positional parameters
+    set -- "${positional_args[@]}"
 
-# Validate that both arguments are integers
-re='^[0-9]+$'
-if ! [[ $number_of_inputs =~ $re ]] || ! [[ $number_of_outputs =~ $re ]] || ! [[ $time_limit =~ $re ]]; then
-    echo "Error: number_of_inputs, number_of_outputs, time_limit must be integers. Got: $number_of_inputs, $number_of_outputs, $time_limit"
-    usage
-fi
+    # Check if exactly six arguments are provided (excluding the optional --circuit_size)
+    if [ "${#positional_args[@]}" -ne 6 ]; then
+        echo "Error: Incorrect number of arguments. Got (${#positional_args[@]})"
+        usage
+    fi
 
-cd "$(dirname "$0")" || exit
-
-
+    number_of_inputs=$1
+    number_of_outputs=$2
+    time_limit=$3
+    basis=$4
+    result_directory=$5
+    pred_directory=$6
+}
 
 join_by() {
     local IFS="$1"     # Set the separator
@@ -106,54 +128,70 @@ update_running_pids() {
 MAX_RUNNING_PROCESSES=16
 UPDATE_TIMEOUT=1
 
-
-create_directory "$pred_directory"
-create_directory "$result_directory"
-
-echo "Loading functions..."
-mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs" "$basis")
-echo "Loaded ${#truth_tables[@]} functions"
-
-ulimit -t "${time_limit}"
-
-declare -a running_pids
-killed_counter=0
-start_time=$(date +%s)
-interval=100
-total_iterations=${#truth_tables[@]}
-counter=0
-echo "Start search"
-for tables in "${truth_tables[@]}"; do
-    eval "python ./find_min_circuit.py ${number_of_inputs} ${basis} ${pred_directory} ${result_directory} ${tables[*]}" &
-    pid=$!
-    running_pids+=("$pid")
-
-    if [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]]; then
-        update_running_pids
+main() {
+    parse_arguments "$@"
+    validate_integer "$number_of_inputs" "$number_of_outputs" "$time_limit"
+    if [ $? -ne 0 ]; then
+        echo "Validation failed."
+        exit 1
     fi
 
-    if [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]]; then
-        while [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]] ; do
-            sleep $UPDATE_TIMEOUT
+    cd "$(dirname "$0")" || exit
+
+    create_directory "$pred_directory"
+    create_directory "$result_directory"
+
+    echo "Loading functions..."
+    mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs" "$basis")
+    echo "Loaded ${#truth_tables[@]} functions"
+
+    ulimit -t "${time_limit}"
+
+    declare -a running_pids
+    killed_counter=0
+    start_time=$(date +%s)
+    interval=100
+    total_iterations=${#truth_tables[@]}
+    counter=0
+    echo "Start search"
+    for tables in "${truth_tables[@]}"; do
+        eval "python ./find_circuit.py --circuit_size ${circuit_size} ${number_of_inputs} ${basis} ${pred_directory} ${result_directory} ${tables[*]}" &
+        pid=$!
+        running_pids+=("$pid")
+
+        if [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]]; then
             update_running_pids
-        done
+        fi
+
+        if [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]]; then
+            while [[ ${#running_pids[@]} -ge $MAX_RUNNING_PROCESSES ]] ; do
+                sleep $UPDATE_TIMEOUT
+                update_running_pids
+            done
+        fi
+
+        ((counter++))
+        if (( counter % interval == 0 )); then
+            current_time=$(date +%s)
+            elapsed_time=$((current_time - start_time))
+            average_time_per_iteration=$(echo "$elapsed_time / $counter" | bc -l)
+            estimated_total_time=$(echo "$average_time_per_iteration * $total_iterations" | bc -l)
+
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Iteration $counter/$total_iterations. Elapsed: $(format_time $elapsed_time), estimated total: $(format_time "$estimated_total_time")"
+        fi
+    done
+
+    echo "Started all tasks! Wait till finish!"
+    while [[ ${#running_pids[@]} -gt 0 ]] ; do
+        sleep $UPDATE_TIMEOUT
+        update_running_pids
+    done
+    echo "All done"
+    if [ "$killed_counter" -gt 0 ]; then
+        echo "Didn't manage to find circuits for ${killed_counter}/${total_iterations} functions"
+    else
+        echo "All ${total_iterations} functions are found"
     fi
+}
 
-    ((counter++))
-    if (( counter % interval == 0 )); then
-        current_time=$(date +%s)
-        elapsed_time=$((current_time - start_time))
-        average_time_per_iteration=$(echo "$elapsed_time / $counter" | bc -l)
-        estimated_total_time=$(echo "$average_time_per_iteration * $total_iterations" | bc -l)
-
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Iteration $counter/$total_iterations. Elapsed: $(format_time $elapsed_time), estimated total: $(format_time "$estimated_total_time")"
-    fi
-done
-
-echo "Started all tasks! Wait till finish!"
-while [[ ${#running_pids[@]} -gt 0 ]] ; do
-    sleep $UPDATE_TIMEOUT
-    update_running_pids
-done
-echo "All done"
-echo "Didn't manage to find circuits for ${killed_counter}/${total_iterations} functions"
+main "$@"

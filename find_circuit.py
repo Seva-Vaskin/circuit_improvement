@@ -1,5 +1,6 @@
 import pathlib
 import sys
+import argparse
 
 from core import CircuitFinder
 
@@ -37,24 +38,37 @@ def find_min_circuit(tables, dimension, gates_predict, forbidden_operations):
     return tables, best_gates, best_circuit
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 6:
-        print(f"Usage: {sys.argv[0]} n basis predictions_dir output_dir truthtable1 ... truthtablem")
-        print('\tn is the number of inputs')
-        print('\tbasis is BENCH/AIG')
-        print('\tpredictions_dir is directory where gates number predictions are stored')
-        print('\toutput_dir is directory where answer should be saved')
-        sys.exit(-1)
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Process some integers.")
 
-    number_of_inputs = int(sys.argv[1])
-    basis = sys.argv[2]
-    predictions_dir = pathlib.Path(sys.argv[3])
-    output_dir = pathlib.Path(sys.argv[4])
-    truth_tables = sys.argv[5:]
+    parser.add_argument('inputs', type=int, help='An integer representing the number of inputs')
+    parser.add_argument('basis', choices=['BENCH', 'AIG'], help='Basis is either BENCH or AIG')
+    parser.add_argument('predictions_dir', type=pathlib.Path,
+                        help='Directory where gates number predictions are stored')
+    parser.add_argument('output_dir', type=pathlib.Path, help='Directory where answer should be saved')
+    parser.add_argument('truth_tables', nargs='+', help='truthtable1 ... truthtablem')
 
-    if basis.lower() == 'bench':
+    parser.add_argument('--circuit_size', type=int,
+                        help='Optional argument to specify the circuit size. '
+                             'If not specified, the minimal circuit will be found',
+                        default=0)
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
+
+    inputs = args.inputs
+    basis = args.basis
+    predictions_dir = args.predictions_dir
+    output_dir = args.output_dir
+    truth_tables = args.truth_tables
+    circuit_size = args.circuit_size
+
+    if basis == 'BENCH':
         forbidden_operations = ['0100', '1101', '0010', '1011']
-    elif basis.lower() == 'aig':
+    elif basis == 'AIG':
         forbidden_operations = ['0110', '1001']
     else:
         print(f"Invalid basis: {basis}, expected BENCH/AIG")
@@ -83,10 +97,18 @@ if __name__ == "__main__":
     else:
         gates_prediction = 1
 
-    _, gates_number, circuit = find_min_circuit(truth_tables, number_of_inputs, gates_prediction, forbidden_operations)
+    if circuit_size == 0:
+        _, gates_number, circuit = find_min_circuit(truth_tables, inputs, gates_prediction, forbidden_operations)
+    else:
+        gates_number = circuit_size
+        circuit = find_circuit(gates_number, inputs, truth_tables, forbidden_operations)
 
     with circuit_file.open('w') as f:
         print(circuit, file=f)
 
     with pred_file.open('w') as f:
         f.write(str(gates_number))
+
+
+if __name__ == "__main__":
+    main()
