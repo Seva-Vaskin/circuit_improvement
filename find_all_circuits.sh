@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 number_of_inputs number_of_outputs time_limit basis result_directory pred_directory [--circuit_size SIZE]"
+    echo "Usage: $0 number_of_inputs number_of_outputs time_limit basis result_directory pred_directory [--circuit_size SIZE] [-y]"
     echo "  number_of_inputs: An integer representing the number of inputs"
     echo "  number_of_outputs: An integer representing the number of outputs"
     echo "  time_limit: An integer representing maximum searching time for one circuit"
@@ -9,6 +9,7 @@ usage() {
     echo "  result_directory: The directory to store the results"
     echo "  pred_directory: The directory to store number of gates predictions"
     echo "  --circuit_size: Optional argument to specify the circuit size"
+    echo "  -y: Automatic yes to prompts; assume \"yes\" as answer to all prompts and run non-interactively"
     exit 1
 }
 
@@ -26,6 +27,7 @@ validate_integer() {
 parse_arguments() {
     # Initialize optional arguments with default values if necessary
     circuit_size="0"
+    auto_yes=false
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -34,12 +36,17 @@ parse_arguments() {
                 shift # past argument
                 shift # past value
                 ;;
+            -y)
+                auto_yes=true
+                shift # past argument
+                ;;
             *) # preserve positional arguments
                 positional_args+=("$1")
                 shift # past argument
                 ;;
         esac
     done
+
 
     # Restore positional parameters
     set -- "${positional_args[@]}"
@@ -69,28 +76,33 @@ create_directory() {
 
     # Check if the directory already exists
     if [ -d "$dir_name" ]; then
-        # Ask the user for permission to override
-        read -p "Directory '$dir_name' exists. Is it ok? Should we continue? (y/n): " answer
+        if [ "$auto_yes" = false ]; then
+            # Ask the user for permission to override
+            read -p "Directory '$dir_name' exists. Is it ok? Should we continue? (y/n): " answer
 
-        case $answer in
-            [Yy]* )
-                echo "Continue working with the existing directory '$dir_name'."
-                ;;
-            [Nn]* )
-                echo "Exit."
-                exit 1
-                ;;
-            * )
-                echo "Invalid input :("
-                exit 1
-                ;;
-        esac
+            case $answer in
+                [Yy]* )
+                    echo "Continue working with the existing directory '$dir_name'."
+                    ;;
+                [Nn]* )
+                    echo "Exit."
+                    exit 1
+                    ;;
+                * )
+                    echo "Invalid input :("
+                    exit 1
+                    ;;
+            esac
+        else
+            echo "Auto-yes enabled: Continue working with the existing directory '$dir_name'."
+        fi
     else
         # Create the directory if it doesn't exist
         mkdir "$dir_name"
         echo "Directory '$dir_name' created."
     fi
 }
+
 
 format_time() {
     local total_seconds=$1
