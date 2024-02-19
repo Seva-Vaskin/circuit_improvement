@@ -103,11 +103,16 @@ def main():
         gates_number = circuit_size
         circuit = find_circuit(gates_number, inputs, truth_tables, forbidden_operations)
 
-    with circuit_file.open('w') as f:
-        print(circuit, file=f)
+    if circuit:
+        with circuit_file.open('w') as f:
+            print(circuit, file=f)
 
-    with pred_file.open('w') as f:
-        f.write(str(gates_number))
+        with pred_file.open('w') as f:
+            f.write(str(gates_number))
+    else:
+        assert circuit_size != 0
+        print(f"Circuit of size {circuit_size} not found for function {truth_tables}", file=sys.stderr)
+        exit(-1)
 
 
 if __name__ == "__main__":
