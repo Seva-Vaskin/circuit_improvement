@@ -1,11 +1,20 @@
 import itertools
-from collections import defaultdict
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
+
+
+@dataclass
+class FunctionTransformation:
+    input_permutation: Optional[Tuple[int]] = None
+    input_negotiations: Optional[Tuple[int]] = None
+    output_negotiations: Optional[Tuple[int]] = None
 
 
 class BinaryFunction:
     def __init__(self, truth_tables):
         assert all(len(table) == len(truth_tables[0]) for table in truth_tables)
         self.truth_tables = truth_tables
+        self.transformation = None
 
     @property
     def inputs(self):
@@ -96,6 +105,10 @@ class BinaryFunction:
                 # Find candidate for bench without input negotiations
                 candidate = self.transform(input_permutation=input_permutation,
                                            output_negotiations=output_negotiations)
+
+                candidate.transformation = FunctionTransformation(input_permutation=input_permutation,
+                                                                  output_negotiations=output_negotiations)
+
                 function_class.add(candidate)
             else:
                 assert basis == 'aig'
@@ -104,6 +117,10 @@ class BinaryFunction:
                     candidate = self.transform(input_permutation=input_permutation,
                                                input_negotiations=input_negotiations,
                                                output_negotiations=output_negotiations)
+
+                    candidate.transformation = FunctionTransformation(input_permutation=input_permutation,
+                                                                      input_negotiations=input_negotiations,
+                                                                      output_negotiations=output_negotiations)
                     function_class.add(candidate)
 
         return function_class
@@ -120,20 +137,22 @@ class BinaryFunction:
 
     @staticmethod
     def all_functions_grouped(inputs, outputs, basis):
-        groups = defaultdict(set)
+        return dict(list(BinaryFunction.all_functions_grouped_iterator(inputs, outputs, basis)))
+
+    @staticmethod
+    def all_functions_grouped_iterator(inputs, outputs, basis):
         functions_to_be_enumerated = set(BinaryFunction.all_functions(inputs, outputs))
         for function in BinaryFunction.all_functions(inputs, outputs):
             if function not in functions_to_be_enumerated:
                 continue
             function_group = function.get_equivalence_class(basis)
             representative = BinaryFunction.get_representative(function_group)
-            groups[representative] = function_group
+            yield representative, function_group
             for f in function_group:
                 assert len(set(f.truth_tables)) != f.truth_tables or f in functions_to_be_enumerated
             # assert all(f in functions_to_be_enumerated for f in function_group)
             functions_to_be_enumerated.difference_update(function_group)
         assert not functions_to_be_enumerated
-        return groups
 
     @staticmethod
     def all_normalized_functions(inputs, outputs):
