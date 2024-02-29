@@ -37,7 +37,6 @@ class Circuit:
         'NAND': '1110',
         'NOR': '1000',
 
-
         '1001': '=',
         '0010': '>',
         '0100': '<',
@@ -72,6 +71,38 @@ class Circuit:
 
         assert len(fname) == 1
         return fname[0]
+
+    @staticmethod
+    def read_from_str(circuit_str):
+        lines = list(circuit_str.split('\n'))
+        while len(lines) > 0 and len(lines[-1]) == 0:
+            lines.pop()
+        input_labels = []
+        gates = {}
+        outputs = []
+        gate_types = {v: k for k, v in Circuit.gate_types.items()}  # Reverse mapping for gate types
+
+        # Process Inputs
+        input_line = lines[0]
+        assert input_line.startswith('Inputs:'), f"Got: {input_line}"
+        input_labels = input_line.replace('Inputs: ', '').split()
+
+        # Process Gates
+        for line in lines[1:-1]:  # Exclude Inputs, and outputs
+            assert ': (' in line
+            gate_info = line.split(': (')[1].replace(')', '').split(' ')
+            gate_name = line.split(': ')[0]
+            assert len(gate_info) == 3
+            operation = gate_info[1]
+            assert operation in gate_types
+            gates[gate_name] = (gate_info[0], gate_info[2], gate_types[operation])
+
+        # Process Outputs
+        output_line = lines[-1]
+        assert output_line.startswith('Outputs:'), f"Got: {output_line}"
+        outputs = output_line.replace('Outputs: ', '').split()
+
+        return Circuit(input_labels=input_labels, gates=gates, outputs=outputs)
 
     def __load_from_string_ckt(self, string):
         lines = string.splitlines()
