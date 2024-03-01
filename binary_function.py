@@ -6,8 +6,8 @@ from typing import List, Optional, Tuple
 @dataclass
 class FunctionTransformation:
     input_permutation: Optional[Tuple[int]] = None
-    input_negotiations: Optional[Tuple[int]] = None
-    output_negotiations: Optional[Tuple[int]] = None
+    input_negotiations: Optional[Tuple[bool]] = None
+    output_negotiations: Optional[Tuple[bool]] = None
 
 
 class BinaryFunction:

@@ -90,11 +90,11 @@ class Circuit:
         # Process Gates
         for line in lines[1:-1]:  # Exclude Inputs, and outputs
             assert ': (' in line
-            gate_info = line.split(': (')[1].replace(')', '').split(' ')
+            gate_info = line.split(': (')[1].strip()[:-1].split(' ')
             gate_name = line.split(': ')[0]
             assert len(gate_info) == 3
             operation = gate_info[1]
-            assert operation in gate_types
+            assert operation in gate_types, f"Got {operation}"
             gates[gate_name] = (gate_info[0], gate_info[2], gate_types[operation])
 
         # Process Outputs
