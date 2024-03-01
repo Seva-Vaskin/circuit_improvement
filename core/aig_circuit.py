@@ -78,8 +78,8 @@ class AIGCircuit:
             if function in ('1100', '1010'):  # function is not(x) or not(y)
                 arg_label = l_arg if function == '1100' else r_arg
                 arg_gate, arg_is_neg = labeled_gates[arg_label]
-                assert not arg_is_neg, "Doubled negotiation"
-                labeled_gates[gate_label] = (arg_gate, True ^ arg_gate.output_negotiation)
+                # assert not arg_is_neg, "Doubled negotiation"
+                labeled_gates[gate_label] = (arg_gate, not arg_is_neg)
             else:
                 assert function in AIGCircuit.allowed_functions
                 gate, is_neg = labeled_gates[gate_label]
@@ -110,7 +110,7 @@ class AIGCircuit:
             result.edges.append(out_edge)
             result.outputs.append(out_edge)
 
-        result.gates = list(map(lambda x: x[0], filter(lambda x: not x[1],labeled_gates.values())))
+        result.gates = list(map(lambda x: x[0], filter(lambda x: not x[1], labeled_gates.values())))
 
         all_truth_tables = circuit.get_truth_tables()
         out_truth_tables = [all_truth_tables[i] for i in circuit.outputs]
