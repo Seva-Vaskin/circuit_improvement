@@ -159,18 +159,24 @@ class AIGCircuit:
             self.permute_inputs(transformation.input_permutation)
 
     def get_output_codes(self):
-        return list(map(lambda x: 2 ** (2 ** len(self.inputs)) - 1 - int(''.join(map(str, x)), 2),
-                        self.get_truth_tables()))
+        codes = [0] * len(self.outputs)
+        for i in range(1 << len(self.inputs)):
+            args = [bool(i >> j & 1) for j in range(len(self.inputs))[::-1]]
+            for j, val in enumerate(self(args)):
+                codes[j] |= int(val) << i
+
+        return codes
 
     def sort_outputs(self, reverse=False):
         assert not self.finalized
         perm = list(range(len(self.outputs)))
         out_codes = self.get_output_codes()
-        perm.sort(key=lambda x: out_codes[x], reverse=not reverse)
+        perm.sort(key=lambda x: out_codes[x], reverse=reverse)
         self.permute_outputs(perm)
 
     def __clear_labels(self):
         assert not self.finalized
+        self.edge_labels = 0
         for gate in self.gates:
             gate.label = None
             gate.out_neg_label = None
@@ -188,11 +194,6 @@ class AIGCircuit:
             gate.label = str(free_name)
             free_name += 1
 
-    def finalize(self):
-        assert not self.finalized
-
-        self.__assign_labels()
-
         for edge in self.edges:
             source = edge.source
             if source.out_neg_label is None and (edge.negotiation ^ source.output_negotiation):
@@ -202,6 +203,11 @@ class AIGCircuit:
             source = output.source
             if source.out_neg_label is None and (output.negotiation ^ source.output_negotiation):
                 source.out_neg_label = self.__gen_out_negotiation_label()
+
+    def finalize(self):
+        assert not self.finalized
+
+        self.__assign_labels()
 
         self.finalized = True
 
@@ -226,6 +232,10 @@ class AIGCircuit:
 
         for gate in self.gates:
             assert (gate.l_input is None) == (gate.r_input is None)
+
+            if gate.out_neg_label is not None:
+                gates[int(gate.out_neg_label)] = ('NOT', gate.label)
+
             if gate.l_input is None or gate.r_input is None:
                 continue
             l_gate = gate.l_input.source
@@ -243,9 +253,6 @@ class AIGCircuit:
                 r_arg = r_gate.label
 
             gates[int(gate.label)] = ('AND', l_arg, r_arg)
-
-            if gate.out_neg_label is not None:
-                gates[int(gate.out_neg_label)] = ('NOT', gate.label)
 
         for gate_label in sorted(gates.keys()):
             res += [' '.join(gates[gate_label])]

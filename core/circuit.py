@@ -290,7 +290,7 @@ class Circuit:
             for gate in topological_ordering:
                 if gate in self.input_labels:
                     continue
-                assert gate in self.gates
+                assert gate in self.gates, f"{gate} not in {self.gates}"
                 f, s = self.gates[gate][0], self.gates[gate][1]
                 assert len(truth_tables[f]) > len(truth_tables[gate]) and len(truth_tables[s]) > len(truth_tables[gate])
                 fv, sv = truth_tables[f][-1], truth_tables[s][-1]
