@@ -133,11 +133,10 @@ class Circuit:
                 i += 2
                 gates[str(label)] = (arg, '0', '1100')
             else:
-                assert False,  f"op pos: {i}, op: {op}. Tokens: {tokens}"
+                assert False, f"op pos: {i}, op: {op}. Tokens: {tokens}"
             label += 1
         result = Circuit(input_labels=input_labels, gates=gates, outputs=outputs)
         return result
-
 
     def __load_from_string_ckt(self, string):
         lines = string.splitlines()
@@ -225,13 +224,42 @@ class Circuit:
 
         return circuit_graph
 
+    def construct_draw_graph(self, detailed_labels=True):
+        circuit_graph = nx.DiGraph()
+        for input_label in self.input_labels:
+            circuit_graph.add_node(input_label)
+
+        for gate in self.gates:
+            op = self.gate_types[self.gates[gate][2]]
+            if detailed_labels:
+                if op == 'not(x)':
+                    label = f'{gate}: not {self.gates[gate][0]}'
+                elif op == 'not(y)':
+                    label = f'{gate}: not {self.gates[gate][1]}'
+                else:
+                    label = f'{gate}: {self.gates[gate][0]} {self.gate_types[self.gates[gate][2]]} {self.gates[gate][1]}'
+            else:
+                if op in ['not(x)', 'not(y)']:
+                    label = 'not'
+                else:
+                    label = op
+            circuit_graph.add_node(gate, label=label)
+            if op != 'not(y)':
+                circuit_graph.add_edge(self.gates[gate][0], gate)
+            if op != 'not(x)':
+                circuit_graph.add_edge(self.gates[gate][1], gate)
+
+        return circuit_graph
+
+
     def __get_from_graph(self, graph):
         for gate in graph.pred:
             if gate in self.input_labels:
                 continue
             operation = (graph.nodes[gate]['label']).split()[2]
             bit_operation = list(self.gate_types.keys())[list(self.gate_types.values()).index(operation)]
-            self.gates[gate] = ((graph.nodes[gate]['label']).split()[1], (graph.nodes[gate]['label']).split()[3], bit_operation)
+            self.gates[gate] = (
+            (graph.nodes[gate]['label']).split()[1], (graph.nodes[gate]['label']).split()[3], bit_operation)
 
     # TODO: check this method
     def replace_subgraph(self, improved_circuit, subcircuit, subcircuit_outputs):
@@ -275,7 +303,7 @@ class Circuit:
 
     # TODO: check this method
     def draw(self, file_name='circuit', detailed_labels=True, experimental=False):
-        circuit_graph = self.construct_graph(detailed_labels)
+        circuit_graph = self.construct_draw_graph(detailed_labels)
         a = nx.nx_agraph.to_agraph(circuit_graph)
         for gate in self.input_labels:
             a.get_node(gate).attr['shape'] = 'box'
@@ -304,7 +332,7 @@ class Circuit:
 
         a.layout(prog='dot')
 
-        file_name = project_directory + '/circuits/.images/' + file_name + '.png'
+        # file_name = project_directory + '/circuits/.images/' + file_name + '.png'
         a.draw(file_name)
         print(f'Circuit image: {file_name}')
 
