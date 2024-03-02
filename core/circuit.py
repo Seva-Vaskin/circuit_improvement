@@ -104,6 +104,41 @@ class Circuit:
 
         return Circuit(input_labels=input_labels, gates=gates, outputs=outputs)
 
+    @staticmethod
+    def read_from_aig_string(string: str):
+        tokens = string.split()
+        assert all(map(lambda x: all(map(lambda y: y.isdigit(), x)) or x in ('AND', 'NOT'), tokens))
+
+        inputs_count = int(tokens[0])
+        input_labels = list(map(str, range(inputs_count)))
+
+        outputs_count = int(tokens[1])
+        output_codes = list(map(int, tokens[2:2 + outputs_count]))
+        outputs = tokens[2 + outputs_count:2 + 2 * outputs_count]
+        gates = dict()
+        i = 2 + 2 * outputs_count
+        label = inputs_count
+        while i < len(tokens):
+            op = tokens[i]
+            assert op in ('AND', 'NOT')
+            if op == 'AND':
+                assert i + 2 < len(tokens)
+                arg1 = tokens[i + 1]
+                arg2 = tokens[i + 2]
+                i += 3
+                gates[str(label)] = (arg1, arg2, '0001')
+            elif op == 'NOT':
+                assert i + 1 < len(tokens)
+                arg = tokens[i + 1]
+                i += 2
+                gates[str(label)] = (arg, '0', '1100')
+            else:
+                assert False,  f"op pos: {i}, op: {op}. Tokens: {tokens}"
+            label += 1
+        result = Circuit(input_labels=input_labels, gates=gates, outputs=outputs)
+        return result
+
+
     def __load_from_string_ckt(self, string):
         lines = string.splitlines()
         number_of_inputs, number_of_gates, number_of_outputs = \

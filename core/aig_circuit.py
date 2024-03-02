@@ -43,6 +43,9 @@ class AIGCircuit:
             self.label = label
             self.outputs = list()
 
+        def __hash__(self):
+            return hash(self.label)
+
     gates: Optional[List[Gate]] = None
     inputs: Optional[List[Gate]] = None
     outputs: Optional[List[Edge]] = None
@@ -110,7 +113,7 @@ class AIGCircuit:
             result.edges.append(out_edge)
             result.outputs.append(out_edge)
 
-        result.gates = list(map(lambda x: x[0], filter(lambda x: not x[1], labeled_gates.values())))
+        result.gates = list(map(lambda x: x[0], filter(lambda x: not x[1], set(labeled_gates.values()))))
 
         all_truth_tables = circuit.get_truth_tables()
         out_truth_tables = [all_truth_tables[i] for i in circuit.outputs]
@@ -181,6 +184,30 @@ class AIGCircuit:
             gate.label = None
             gate.out_neg_label = None
 
+    def __find_cycle(self, current: AIGCircuit.Gate, visited: Dict[int, int]):
+        if visited[id(current)] == 2:
+            return False
+        if visited[id(current)] == 1:
+            return True
+        visited[id(current)] = 1
+        if current.l_input is not None:
+            assert current.r_input is not None
+            for nxt in [current.l_input.source, current.r_input.source]:
+                if self.__find_cycle(nxt, visited):
+                    return True
+        visited[id(current)] = 2
+        return False
+
+    def is_acyclic(self):
+        visited = dict((id(i), 0) for i in self.gates)
+        for gate in self.gates:
+            if visited[id(gate)] != 0:
+                assert visited[id(gate)] == 2
+                continue
+            if self.__find_cycle(gate, visited):
+                return False
+        return True
+
     def __assign_labels(self):
         assert not self.finalized
         self.__clear_labels()
@@ -206,9 +233,7 @@ class AIGCircuit:
 
     def finalize(self):
         assert not self.finalized
-
         self.__assign_labels()
-
         self.finalized = True
 
     def __str__(self):
@@ -224,9 +249,9 @@ class AIGCircuit:
             source = output.source
             if source.output_negotiation ^ output.negotiation:
                 assert source.out_neg_label is not None
-                res += source.out_neg_label
+                res.append(source.out_neg_label)
             else:
-                res += source.label
+                res.append(source.label)
 
         gates = dict()
 
