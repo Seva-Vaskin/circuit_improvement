@@ -41,7 +41,7 @@ def main():
 
                             f_aig = copy.deepcopy(rep_aig)
                             f_aig.transform(FunctionTransformation(inp_perm, inp_neg, out_neg))
-                            f_aig.sort_outputs(reverse=True)
+                            f_aig.sort_outputs()
                             f_aig.finalize()
                             tables = ' '.join(map(lambda x: ''.join(map(str, x)), f_aig.get_truth_tables()))
                             assert sorted(tables) == sorted(function_tables)
