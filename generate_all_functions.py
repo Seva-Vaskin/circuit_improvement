@@ -10,8 +10,9 @@ def main():
 
     assert basis == 'aig' or basis == 'bench'
 
-    groups = BinaryFunction.all_functions_grouped(number_of_inputs, number_of_outputs, basis)
-    print(*groups.keys(), sep='\n')
+    # groups = BinaryFunction.all_functions_grouped(number_of_inputs, number_of_outputs, basis)
+    groups = list(BinaryFunction.all_functions(number_of_inputs, number_of_outputs))
+    print(*groups, sep='\n')
 
     # Tests
     # for function in BinaryFunction.all_functions(number_of_inputs, number_of_outputs):
