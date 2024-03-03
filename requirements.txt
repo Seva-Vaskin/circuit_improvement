@@ -5,3 +5,4 @@ sympy~=1.9
 pyeda~=0.28.0
 pygraphviz~=1.7
 pycosat~=0.6.3
+tqdm==4.66.2
