@@ -4,6 +4,8 @@ import copy
 import itertools
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Tuple, Set
+import networkx as nx
+
 from core.circuit import Circuit
 from binary_function import FunctionTransformation
 
@@ -28,6 +30,9 @@ class AIGCircuit:
         source: AIGCircuit.Gate
         dest: Optional[AIGCircuit.Gate] = None
         negotiation: bool = False
+
+        def is_negotiation_edge(self):
+            return self.negotiation ^ self.source.output_negotiation
 
     @dataclass
     class Gate:
@@ -223,12 +228,12 @@ class AIGCircuit:
 
         for edge in self.edges:
             source = edge.source
-            if source.out_neg_label is None and (edge.negotiation ^ source.output_negotiation):
+            if source.out_neg_label is None and (edge.is_negotiation_edge()):
                 source.out_neg_label = self.__gen_out_negotiation_label()
 
         for output in self.outputs:
             source = output.source
-            if source.out_neg_label is None and (output.negotiation ^ source.output_negotiation):
+            if source.out_neg_label is None and (output.is_negotiation_edge()):
                 source.out_neg_label = self.__gen_out_negotiation_label()
 
     def finalize(self):
@@ -247,7 +252,7 @@ class AIGCircuit:
 
         for output in self.outputs:  # output labels
             source = output.source
-            if source.output_negotiation ^ output.negotiation:
+            if output.is_negotiation_edge():
                 assert source.out_neg_label is not None
                 res.append(source.out_neg_label)
             else:
@@ -264,14 +269,14 @@ class AIGCircuit:
             if gate.l_input is None or gate.r_input is None:
                 continue
             l_gate = gate.l_input.source
-            if gate.l_input.negotiation ^ l_gate.output_negotiation:
+            if gate.l_input.is_negotiation_edge():
                 assert l_gate.out_neg_label is not None
                 l_arg = l_gate.out_neg_label
             else:
                 l_arg = l_gate.label
 
             r_gate = gate.r_input.source
-            if gate.r_input.negotiation ^ r_gate.output_negotiation:
+            if gate.r_input.is_negotiation_edge():
                 assert r_gate.out_neg_label is not None
                 r_arg = r_gate.out_neg_label
             else:
@@ -297,8 +302,8 @@ class AIGCircuit:
         assert l_gate is not self
         assert r_gate is not self
 
-        l_val = self.__get_val(l_gate) ^ gate.l_input.negotiation ^ l_gate.output_negotiation
-        r_val = self.__get_val(r_gate) ^ gate.r_input.negotiation ^ r_gate.output_negotiation
+        l_val = self.__get_val(l_gate) ^ gate.l_input.is_negotiation_edge()
+        r_val = self.__get_val(r_gate) ^ gate.r_input.is_negotiation_edge()
         gate.val = l_val and r_val
         return gate.val
 
@@ -310,7 +315,7 @@ class AIGCircuit:
 
         res = []
         for output in self.outputs:
-            res.append(self.__get_val(output.source) ^ output.negotiation ^ output.source.output_negotiation)
+            res.append(self.__get_val(output.source) ^ output.is_negotiation_edge())
         self.__clean_values()
         return tuple(res)
 
@@ -321,3 +326,45 @@ class AIGCircuit:
             for t, v in zip(tables, values):
                 t.append(int(v))
         return tables
+
+    def construct_draw_graph(self):
+        assert self.finalized
+        circuit_graph = nx.DiGraph()
+
+        for gate in self.gates:
+            circuit_graph.add_node(gate.label)
+
+        for edge in self.edges:
+            if edge.dest is None:
+                continue
+            source = edge.source.label
+            dest = edge.dest.label
+            if dest is None:
+                continue
+            circuit_graph.add_edge(source, dest)
+
+        for i, edge in enumerate(self.outputs):
+            source = edge.source.label
+            dest = f"o{i}"
+            circuit_graph.add_node(dest)
+            circuit_graph.add_edge(source, dest)
+
+        return circuit_graph
+
+    def draw(self, file_name: str):
+        graph = self.construct_draw_graph()
+        agraph = nx.nx_agraph.to_agraph(graph)
+        for gate in self.inputs:
+            agraph.get_node(gate.label).attr['shape'] = 'box'
+        for i, edge in enumerate(self.outputs):
+            agraph.get_node(f"o{i}").attr['shape'] = 'box'
+            if edge.is_negotiation_edge():
+                agraph.get_edge(edge.source.label, f'o{i}').attr['style'] = 'dashed'
+        for i, edge in enumerate(self.edges):
+            if edge.dest is not None and edge.is_negotiation_edge():
+                agraph.get_edge(edge.source.label, edge.dest.label).attr['style'] = 'dashed'
+
+        agraph.layout(prog='dot')
+        agraph.draw(file_name)
+        print(f'Circuit image: {file_name}')
+
