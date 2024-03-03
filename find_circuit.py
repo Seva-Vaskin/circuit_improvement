@@ -17,7 +17,7 @@ def find_min_circuit(tables, dimension, gates_predict, forbidden_operations):
 
     gates = int(round(gates_predict))
 
-    while True:
+    while gates > 0:
         circuit = find_circuit(gates, dimension, tables, forbidden_operations)
         if circuit:
             best_gates = gates
