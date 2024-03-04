@@ -23,14 +23,20 @@ def main(args):
     Path(args.result_directory).mkdir(parents=True, exist_ok=True)
     Path(args.pred_directory).mkdir(parents=True, exist_ok=True)
 
-    with ProcessPoolExecutor() as executor:
-        futures = [
-            executor.submit(run_find_circuit, args.number_of_inputs, args.basis, args.pred_directory, args.result_directory,
-                            tables.truth_tables) for tables in truth_tables]
+    bucket = 100000
+    for i in range(0, len(truth_tables), bucket):
+        lft = i
+        rgt = min(len(truth_tables), i + bucket)
+        print(f"Start processing: [{lft}, {rgt})")
+        with ProcessPoolExecutor() as executor:
+            futures = [
+                executor.submit(run_find_circuit, args.number_of_inputs, args.basis, args.pred_directory,
+                                args.result_directory,
+                                tables.truth_tables) for tables in truth_tables[lft:rgt]]
 
-        for future in as_completed(futures):
-            future.result()
-            pbar.update(1)
+            for future in as_completed(futures):
+                future.result()
+                pbar.update(1)
 
     pbar.close()
 
