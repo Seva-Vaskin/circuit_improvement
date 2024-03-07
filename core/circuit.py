@@ -44,6 +44,17 @@ class Circuit:
         '1101': '<=',
     }
 
+    gate_bench_types_reversed = {
+        '0110': 'XOR',
+        '0111': 'OR',
+        '0001': 'AND',
+        '1100': 'NOT',
+        '1010': 'NOT',
+        '1110': 'NAND',
+        '1000': 'NOR',
+        '1001': 'NXOR'
+    }
+
     def __init__(self, input_labels=None, gates=None, outputs=None, fn=None, graph=None):
         self.input_labels = input_labels or []
         self.gates = gates or {}
@@ -60,6 +71,34 @@ class Circuit:
             s += f'{gate}: ({self.gates[gate][0]} {self.gate_types[self.gates[gate][2]]} {self.gates[gate][1]})\n'
         s += 'Outputs: ' + ' '.join(map(str, self.outputs))
         return s
+
+    def get_output_codes(self):
+        all_truth_tables = self.get_truth_tables()
+        truth_tables = [all_truth_tables[i] for i in self.outputs]
+        codes = list(map(lambda x: int(''.join(map(str, x[::-1])), 2), truth_tables))
+        return codes
+
+    def to_one_line_str(self):
+        res = []
+        res += [str(len(self.input_labels)), str(len(self.outputs))]
+        codes_and_outputs = list(zip(self.get_output_codes(), self.outputs))
+        codes_and_outputs.sort(key=lambda x: x[0])
+        res += list(map(lambda x: str(x[0]), codes_and_outputs))
+        res += list(map(lambda x: str(x[1]), codes_and_outputs))
+        # res += list(map(str, self.get_output_codes()))
+        # res += list(map(str, self.outputs))
+
+        for i, gate_label in enumerate(sorted(self.gates.keys(), key=lambda x: int(x))):
+            assert i + len(self.input_labels) == int(gate_label)
+            l_arg, r_arg, truth_table = self.gates[gate_label]
+            function = self.gate_bench_types_reversed[truth_table]
+            if function == 'NOT':
+                arg = l_arg if truth_table == '1100' else r_arg if truth_table == '1010' else None
+                assert arg is not None
+                res += [function, arg]
+            else:
+                res += [function, l_arg, r_arg]
+        return ' '.join(res)
 
     @staticmethod
     def find_file(filename):
@@ -251,7 +290,6 @@ class Circuit:
 
         return circuit_graph
 
-
     def __get_from_graph(self, graph):
         for gate in graph.pred:
             if gate in self.input_labels:
@@ -259,7 +297,7 @@ class Circuit:
             operation = (graph.nodes[gate]['label']).split()[2]
             bit_operation = list(self.gate_types.keys())[list(self.gate_types.values()).index(operation)]
             self.gates[gate] = (
-            (graph.nodes[gate]['label']).split()[1], (graph.nodes[gate]['label']).split()[3], bit_operation)
+                (graph.nodes[gate]['label']).split()[1], (graph.nodes[gate]['label']).split()[3], bit_operation)
 
     # TODO: check this method
     def replace_subgraph(self, improved_circuit, subcircuit, subcircuit_outputs):
@@ -382,5 +420,7 @@ class Circuit:
         new_gates = {}
         for gate in self.gates:
             value = self.gates[gate]
-            new_gates[list_after[list_before.index(gate)] if gate in list_before else gate] = (list_after[list_before.index(value[0])] if value[0] in list_before else value[0], list_after[list_before.index(value[1])] if value[1] in list_before else value[1], value[2])
+            new_gates[list_after[list_before.index(gate)] if gate in list_before else gate] = (
+                list_after[list_before.index(value[0])] if value[0] in list_before else value[0],
+                list_after[list_before.index(value[1])] if value[1] in list_before else value[1], value[2])
         self.gates = new_gates
