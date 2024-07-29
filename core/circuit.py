@@ -66,10 +66,10 @@ class Circuit:
 
     def __str__(self):
         s = ''
-        s += 'Inputs: ' + ' '.join(map(str, self.input_labels)) + '\n'
+        s += ' '.join(map(lambda x: f"x{x}", self.input_labels)) + '\n'
         for gate in self.gates:
-            s += f'{gate}: ({self.gates[gate][0]} {self.gate_types[self.gates[gate][2]]} {self.gates[gate][1]})\n'
-        s += 'Outputs: ' + ' '.join(map(str, self.outputs))
+            s += f'{gate}: (x{self.gates[gate][0]} x{self.gates[gate][1]} {self.gates[gate][2]})\n'
+        s += ' '.join(map(lambda x: f"x{x}", self.outputs))
         return s
 
     def get_output_codes(self):

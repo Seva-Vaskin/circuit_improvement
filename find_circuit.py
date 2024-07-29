@@ -3,6 +3,7 @@ import sys
 import argparse
 
 from core import CircuitFinder
+from basis import Basis
 
 
 def find_circuit(gates, dimension, tables, forbidden_operations):
@@ -42,7 +43,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Process some integers.")
 
     parser.add_argument('inputs', type=int, help='An integer representing the number of inputs')
-    parser.add_argument('basis', choices=['BENCH', 'AIG'], help='Basis is either BENCH or AIG')
+    parser.add_argument('basis', choices=[b.value for b in Basis],
+                        help=f'Basis one of: {" ".join(b.value for b in Basis)}')
     parser.add_argument('predictions_dir', type=pathlib.Path,
                         help='Directory where gates number predictions are stored')
     parser.add_argument('output_dir', type=pathlib.Path, help='Directory where answer should be saved')
@@ -60,19 +62,21 @@ def main():
     args = parse_arguments()
 
     inputs = args.inputs
-    basis = args.basis
+    basis = Basis(args.basis)
     predictions_dir = args.predictions_dir
     output_dir = args.output_dir
     truth_tables = args.truth_tables
     circuit_size = args.circuit_size
 
-    if basis == 'BENCH':
-        forbidden_operations = ['0100', '1101', '0010', '1011']
-    elif basis == 'AIG':
-        forbidden_operations = ['0110', '1001']
-    else:
-        print(f"Invalid basis: {basis}, expected BENCH/AIG")
-        sys.exit(-1)
+    match basis:
+        case Basis.BENCH:
+            forbidden_operations = ['0100', '1101', '0010', '1011']
+        case Basis.AIG:
+            forbidden_operations = ['0110', '1001']
+        case Basis.XAIG:
+            forbidden_operations = []
+        case _:
+            assert False, "Undefined basis type"
 
     if not output_dir.is_dir():
         print(f"Output directory ({output_dir}) is does not exist or not a directory")

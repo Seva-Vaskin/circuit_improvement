@@ -5,6 +5,7 @@ import itertools
 from binary_function import BinaryFunction, FunctionTransformation
 from core.aig_circuit import AIGCircuit
 from core.circuit import Circuit
+from basis import Basis
 
 
 def main():

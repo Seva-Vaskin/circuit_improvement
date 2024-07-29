@@ -6,13 +6,10 @@ from binary_function import BinaryFunction
 def main():
     number_of_inputs = int(sys.argv[1])
     number_of_outputs = int(sys.argv[2])
-    basis = sys.argv[3].lower()
-
-    assert basis == 'aig' or basis == 'bench'
 
     # groups = BinaryFunction.all_functions_grouped(number_of_inputs, number_of_outputs, basis)
     groups = list(BinaryFunction.all_functions(number_of_inputs, number_of_outputs))
-    print(*groups, sep='\n')
+    print("\n".join(map(str, groups)))
 
     # Tests
     # for function in BinaryFunction.all_functions(number_of_inputs, number_of_outputs):
@@ -23,9 +20,9 @@ def main():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 3:
         print('Usage:', sys.argv[0], 'n m basis')
-        print('(n is the number of inputs, m is the number of outputs, basis: BENCH/AIG)')
+        print('(n is the number of inputs, m is the number of outputs)')
         sys.exit(-1)
 
     main()

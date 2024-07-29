@@ -1,11 +1,13 @@
 #!/bin/bash
 
+#set -e
+
 usage() {
     echo "Usage: $0 number_of_inputs number_of_outputs time_limit basis result_directory pred_directory [--circuit_size SIZE] [-y]"
     echo "  number_of_inputs: An integer representing the number of inputs"
     echo "  number_of_outputs: An integer representing the number of outputs"
     echo "  time_limit: An integer representing maximum searching time for one circuit"
-    echo "  basis: BENCH/AIG"
+    echo "  basis: BENCH/AIG/XAIG"
     echo "  result_directory: The directory to store the results"
     echo "  pred_directory: The directory to store number of gates predictions"
     echo "  --circuit_size: Optional argument to specify the circuit size"
@@ -154,7 +156,7 @@ main() {
     create_directory "$result_directory"
 
     echo "Loading functions..."
-    mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs" "$basis")
+    mapfile -t truth_tables < <(python ./generate_all_functions.py "$number_of_inputs" "$number_of_outputs")
     echo "Loaded ${#truth_tables[@]} functions"
 
     ulimit -t "${time_limit}"
@@ -182,7 +184,7 @@ main() {
             done
         fi
 
-        ((counter++))
+        counter=$((counter + 1))
         if (( counter % interval == 0 )); then
             current_time=$(date +%s)
             elapsed_time=$((current_time - start_time))
