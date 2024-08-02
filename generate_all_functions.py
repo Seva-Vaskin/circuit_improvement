@@ -3,13 +3,18 @@ import sys
 from binary_function import BinaryFunction
 
 
+def is_normalized(function: BinaryFunction) -> bool:
+    return all(tt[0] == '0' for tt in function.truth_tables)
+
+
 def main():
     number_of_inputs = int(sys.argv[1])
     number_of_outputs = int(sys.argv[2])
 
     # groups = BinaryFunction.all_functions_grouped(number_of_inputs, number_of_outputs, basis)
-    groups = list(BinaryFunction.all_functions(number_of_inputs, number_of_outputs))
-    print("\n".join(map(str, groups)))
+    groups = BinaryFunction.all_functions(number_of_inputs, number_of_outputs)
+    groups = filter(is_normalized, groups)
+    print(*groups, sep='\n')
 
     # Tests
     # for function in BinaryFunction.all_functions(number_of_inputs, number_of_outputs):

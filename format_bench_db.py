@@ -23,7 +23,7 @@ def main():
                 filepath = source_dir / ('_'.join(func.truth_tables) + '.txt')
                 assert filepath.is_file(), f"Got: {filepath}"
                 with filepath.open('r') as f:
-                    circuit = Circuit.read_from_str(f.read())
+                    circuit = Circuit.from_str(f.read())
                 dest.write(f"{circuit.to_one_line_str()}\n")
 
 

@@ -44,7 +44,7 @@ class Circuit:
         '1101': '<=',
     }
 
-    gate_bench_types_reversed = {
+    gate_types_reversed = {
         '0110': 'XOR',
         '0111': 'OR',
         '0001': 'AND',
@@ -52,7 +52,11 @@ class Circuit:
         '1010': 'NOT',
         '1110': 'NAND',
         '1000': 'NOR',
-        '1001': 'NXOR'
+        '1001': 'NXOR',
+        '0010': 'GT',
+        '0100': 'LT',
+        '1011': 'GEQ',
+        '1101': "LEQ",
     }
 
     def __init__(self, input_labels=None, gates=None, outputs=None, fn=None, graph=None):
@@ -91,13 +95,13 @@ class Circuit:
         for i, gate_label in enumerate(sorted(self.gates.keys(), key=lambda x: int(x))):
             assert i + len(self.input_labels) == int(gate_label)
             l_arg, r_arg, truth_table = self.gates[gate_label]
-            function = self.gate_bench_types_reversed[truth_table]
+            function = self.gate_types_reversed[truth_table]
             if function == 'NOT':
                 arg = l_arg if truth_table == '1100' else r_arg if truth_table == '1010' else None
                 assert arg is not None
-                res += [function, arg]
+                res += [function, str(arg)]
             else:
-                res += [function, l_arg, r_arg]
+                res += [function, str(l_arg), str(r_arg)]
         return ' '.join(res)
 
     @staticmethod
@@ -111,37 +115,52 @@ class Circuit:
         assert len(fname) == 1
         return fname[0]
 
-    @staticmethod
-    def read_from_str(circuit_str):
-        lines = list(circuit_str.split('\n'))
-        while len(lines) > 0 and len(lines[-1]) == 0:
-            lines.pop()
-        input_labels = []
+    @classmethod
+    def from_str(cls, s):
+        lines = s.strip().split('\n')
+        input_labels = [int(x[1:]) for x in lines[0].split()]
         gates = {}
-        outputs = []
-        gate_types = {v: k for k, v in Circuit.gate_types.items()}  # Reverse mapping for gate types
+        outputs = [int(x[1:]) for x in lines[-1].split()]
 
-        # Process Inputs
-        input_line = lines[0]
-        assert input_line.startswith('Inputs:'), f"Got: {input_line}"
-        input_labels = input_line.replace('Inputs: ', '').split()
+        for line in lines[1:-1]:
+            gate, rest = line.split(':')
+            gate = int(gate)
+            parts = rest.strip()[1:-1].split()
+            gates[gate] = (int(parts[0][1:]), int(parts[1][1:]), parts[2])
 
-        # Process Gates
-        for line in lines[1:-1]:  # Exclude Inputs, and outputs
-            assert ': (' in line
-            gate_info = line.split(': (')[1].strip()[:-1].split(' ')
-            gate_name = line.split(': ')[0]
-            assert len(gate_info) == 3
-            operation = gate_info[1]
-            assert operation in gate_types, f"Got {operation}"
-            gates[gate_name] = (gate_info[0], gate_info[2], gate_types[operation])
+        return cls(input_labels=input_labels, gates=gates, outputs=outputs)
 
-        # Process Outputs
-        output_line = lines[-1]
-        assert output_line.startswith('Outputs:'), f"Got: {output_line}"
-        outputs = output_line.replace('Outputs: ', '').split()
-
-        return Circuit(input_labels=input_labels, gates=gates, outputs=outputs)
+    # @staticmethod
+    # def read_from_str(circuit_str):
+    #     lines = list(circuit_str.split('\n'))
+    #     while len(lines) > 0 and len(lines[-1]) == 0:
+    #         lines.pop()
+    #     input_labels = []
+    #     gates = {}
+    #     outputs = []
+    #     gate_types = {v: k for k, v in Circuit.gate_types.items()}  # Reverse mapping for gate types
+    #
+    #     # Process Inputs
+    #     input_line = lines[0]
+    #     assert input_line.startswith('Inputs:'), f"Got: {input_line}"
+    #     input_labels = input_line.replace('Inputs: ', '').split()
+    #
+    #     # Process Gates
+    #     for line in lines[1:-1]:  # Exclude Inputs, and outputs
+    #         assert ': (' in line
+    #         gate_info = line.split(': (')[1].strip()[:-1].split(' ')
+    #         gate_name = line.split(': ')[0]
+    #         assert len(gate_info) == 3
+    #         operation = gate_info[1]
+    #         assert operation in gate_types, f"Got {operation}"
+    #         gates[gate_name] = (gate_info[0], gate_info[2], gate_types[operation])
+    #
+    #     # Process Outputs
+    #     output_line = lines[-1]
+    #     assert output_line.startswith('Outputs:'), f"Got: {output_line}"
+    #     outputs = output_line.replace('Outputs: ', '').split()
+    #
+    #     return Circuit(input_labels=input_labels, gates=gates, outputs=outputs)
 
     @staticmethod
     def read_from_aig_string(string: str):
