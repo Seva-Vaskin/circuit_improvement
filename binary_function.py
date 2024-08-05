@@ -46,7 +46,7 @@ class BinaryFunction:
     def has_equal_outputs(self):
         return len(set(self.truth_tables)) != len(self.truth_tables)
 
-    def transform(self, input_permutation=None, input_negotiations=None, output_negotiations=None):
+    def transform(self, input_permutation=None, input_negotiations=None, output_negotiations=None, sort_outputs=True):
 
         assert input_permutation is None or self.inputs == len(input_permutation)
         assert input_negotiations is None or self.inputs == len(input_negotiations)
@@ -80,7 +80,11 @@ class BinaryFunction:
                 # Save value
                 table.append(val)
 
-        return BinaryFunction(tuple(sorted(''.join(table) for table in result_tables)))
+        tables = [''.join(table) for table in result_tables]
+        return BinaryFunction(tuple(
+            sorted(tables) if sort_outputs
+            else tables
+        ))
 
     def normalized(self):
         new_truth_tables = []
